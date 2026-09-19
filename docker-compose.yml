@@ -1,0 +1,76 @@
+# Pilot deployment profile.
+#
+# The API and the compute worker are separate services sharing one database and
+# one object store, so compute can be scaled without touching the transactional
+# workflow (PRD 7.2). The same images run in the private cluster profile.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: mip
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mip}
+      POSTGRES_DB: mip
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mip -d mip"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./backend
+    environment:
+      MIP_DATABASE_URL: postgresql+psycopg://mip:${POSTGRES_PASSWORD:-mip}@db:5432/mip
+      MIP_OBJECT_STORE: /data/object-store
+      MIP_JWT_SECRET: ${MIP_JWT_SECRET:?set MIP_JWT_SECRET in .env}
+      MIP_RELEASE_SIGNING_SECRET: ${MIP_RELEASE_SIGNING_SECRET:?set MIP_RELEASE_SIGNING_SECRET in .env}
+      MIP_SEED_DEMO: ${MIP_SEED_DEMO:-true}
+      MIP_CORS_ORIGINS: ${MIP_CORS_ORIGINS:-http://localhost:5173,http://localhost:8080}
+      # The API keeps one in-process worker so a single-container deployment
+      # still functions; the worker service below carries the real load.
+      MIP_WORKER_THREADS: 1
+    volumes:
+      - object-store:/data/object-store
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ./backend
+    command: ["python", "worker.py"]
+    environment:
+      MIP_DATABASE_URL: postgresql+psycopg://mip:${POSTGRES_PASSWORD:-mip}@db:5432/mip
+      MIP_OBJECT_STORE: /data/object-store
+      MIP_JWT_SECRET: ${MIP_JWT_SECRET:?set MIP_JWT_SECRET in .env}
+      MIP_RELEASE_SIGNING_SECRET: ${MIP_RELEASE_SIGNING_SECRET:?set MIP_RELEASE_SIGNING_SECRET in .env}
+      MIP_SEED_DEMO: "false"
+      MIP_WORKER_THREADS: ${MIP_WORKER_THREADS:-4}
+    volumes:
+      - object-store:/data/object-store
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE: ${VITE_API_BASE:-http://localhost:8000}
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  db-data:
+  object-store:

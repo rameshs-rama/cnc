@@ -1,0 +1,7 @@
+feature,attribute,nominal,value,unit,tolerance_plus,tolerance_minus,instrument,criticality,operator,note
+OUTLINE,length,100.00,100.02,mm,0.10,0.10,Mitutoyo caliper 500-196,function,A.Kerr,Overall X
+OUTLINE,width,60.00,59.97,mm,0.10,0.10,Mitutoyo caliper 500-196,function,A.Kerr,Overall Y
+OUTLINE,height,20.00,20.01,mm,0.05,0.05,Micrometer 293-240,function,A.Kerr,Overall Z
+P1,depth,8.00,8.02,mm,0.05,0.05,Depth micrometer,quality,A.Kerr,Pocket floor
+H5,diameter,12.02,12.019,mm,0.02,0.00,CMM Zeiss Contura,function,M.Diaz,Reamed bore
+H1,diameter,8.20,8.23,mm,0.15,0.15,Pin gauge set,noncritical,M.Diaz,Clearance hole
