@@ -1,0 +1,42 @@
+{
+  "name": "CNC Manufacturing Intelligence Platform",
+  "image": "mcr.microsoft.com/devcontainers/python:1-3.11-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": { "version": "20" }
+  },
+
+  // Installed once when the codespace is created, so a terminal opened later is
+  // ready to run the test suite or the end-to-end walkthrough immediately.
+  // The plain install is attempted first and falls back to a user install,
+  // because whether site-packages is writable depends on the base image.
+  "postCreateCommand": "pip install -e 'backend[dev]' || pip install --user -e 'backend[dev]'; cd frontend && npm install --no-audit --no-fund",
+
+  "forwardPorts": [8000, 5173],
+  "portsAttributes": {
+    "8000": { "label": "Platform API", "onAutoForward": "notify" },
+    "5173": { "label": "Web application", "onAutoForward": "notify" }
+  },
+
+  "containerEnv": {
+    // A codespace is a scratch environment: SQLite and the demo tenant are the
+    // right defaults here, and both are wrong for production (see docs/DEPLOYMENT.md).
+    "MIP_DATABASE_URL": "sqlite:///./var/mip.db",
+    "MIP_OBJECT_STORE": "./var/object-store",
+    "MIP_SEED_DEMO": "true",
+    "MIP_CORS_ORIGINS": "http://localhost:5173,http://localhost:4173"
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "charliermarsh.ruff",
+        "dbaeumer.vscode-eslint"
+      ],
+      "settings": {
+        "python.testing.pytestEnabled": true,
+        "python.testing.pytestArgs": ["backend/tests"]
+      }
+    }
+  }
+}

@@ -17,6 +17,23 @@ release.
 
 ## Run it
 
+### From a browser, including a phone
+
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/rameshs-rama/cnc)
+
+Tap the badge. The codespace installs everything itself, so once the terminal
+appears you can go straight to:
+
+```bash
+python scripts/walkthrough.py   # the whole controlled workflow, as terminal output
+make api                        # then open the forwarded port 8000 at /docs
+```
+
+The walkthrough is the best demo on a small screen: it is all text, with no
+ports to forward and no 3D viewport to pinch-zoom.
+
+### Locally
+
 ```bash
 git clone https://github.com/rameshs-rama/cnc.git
 cd cnc
