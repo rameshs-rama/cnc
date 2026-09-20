@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { download, request, type Job, type MasterRecord, type NCProgram, type Plan, type Project, type Release, type Simulation } from '@/lib/api'
+import { download, request, type Job, type MasterRecord, type NCProgram, type Plan, type Project, type Release, type Simulation, apiBase, getToken } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { Badge, DataTable, Empty, ErrorNote, FindingCard, GateCard, KeyValue, Panel, Loading } from '@/components/ui'
 import { JobWatcher } from '@/components/JobWatcher'
@@ -126,8 +126,8 @@ export function NcRelease({
 
   const viewProgram = async (program: NCProgram) => {
     const response = await fetch(
-      `${(import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '')}/v1/nc-programs/${program.id}/text`,
-      { headers: { Authorization: `Bearer ${localStorage.getItem('mip.token')}` } },
+      `${apiBase()}/v1/nc-programs/${program.id}/text`,
+      { headers: { Authorization: `Bearer ${getToken()}` } },
     )
     setProgramText(await response.text())
   }

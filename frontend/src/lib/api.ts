@@ -5,7 +5,105 @@
  * can render the specific recovery action rather than a generic failure.
  */
 
-const BASE = (import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '')
+const BASE_STORAGE_KEY = 'mip.apiBase'
+
+/**
+ * Where the API lives, resolved once per page load:
+ *
+ *   1. `?api=https://…` on the address bar. It is persisted and then removed
+ *      from the URL, so one link can point a static deployment (GitHub Pages,
+ *      a Render static site) at any API without a rebuild. A bare `?api=`
+ *      clears the persisted choice.
+ *   2. The choice persisted by (1) or by the sign-in page.
+ *   3. `VITE_API_BASE`, inlined at build time.
+ *   4. Nothing: same origin, behind the reverse proxy of the Compose stack.
+ *
+ * Only http(s) URLs are accepted. The value ends up in fetch URLs and in an
+ * href, so anything else — a javascript: URL arriving through a crafted link —
+ * is dropped rather than followed.
+ */
+function resolveApiBase(): string {
+  const params = new URLSearchParams(window.location.search)
+  const fromUrl = params.get('api')
+  let override = ''
+  if (fromUrl !== null) {
+    override = normaliseApiBase(fromUrl)
+    persistApiBase(override)
+    params.delete('api')
+    const query = params.toString()
+    window.history.replaceState(
+      null,
+      '',
+      `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`,
+    )
+  }
+  return override || readApiBase() || normaliseApiBase(import.meta.env.VITE_API_BASE ?? '')
+}
+
+function normaliseApiBase(raw: string): string {
+  const value = raw.trim()
+  if (!value) return ''
+  try {
+    const url = new URL(value)
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return ''
+    return `${url.origin}${url.pathname}`.replace(/\/$/, '')
+  } catch {
+    return ''
+  }
+}
+
+function readApiBase(): string {
+  try {
+    return normaliseApiBase(localStorage.getItem(BASE_STORAGE_KEY) ?? '')
+  } catch {
+    return ''
+  }
+}
+
+function persistApiBase(value: string) {
+  try {
+    if (value) localStorage.setItem(BASE_STORAGE_KEY, value)
+    else localStorage.removeItem(BASE_STORAGE_KEY)
+  } catch {
+    /* storage unavailable: the choice lasts for this page load only */
+  }
+}
+
+const BASE = resolveApiBase()
+
+/** The API base in use: an absolute URL, or '' for the same origin. */
+export function apiBase(): string {
+  return BASE
+}
+
+/** True when the base came from a link or the sign-in page rather than the build. */
+export function apiBaseIsOverride(): boolean {
+  return readApiBase() !== ''
+}
+
+/**
+ * Change the API base. The client resolves it once per page load, so this
+ * persists the choice and reloads; nothing half-configured survives.
+ */
+export function setApiBase(next: string) {
+  persistApiBase(normaliseApiBase(next))
+  window.location.reload()
+}
+
+function isAbort(error: unknown): boolean {
+  return error instanceof DOMException && error.name === 'AbortError'
+}
+
+/** A fetch that never reached the API: wrong base, CORS, offline, or asleep. */
+function unreachable(cause: unknown): ApiError {
+  const where = BASE || 'the same origin'
+  return new ApiError(
+    0,
+    'unreachable',
+    `Cannot reach the API at ${where}. Check the API endpoint on the sign-in page.`,
+    { cause: String(cause) },
+  )
+}
 
 export class ApiError extends Error {
   constructor(
@@ -45,12 +143,18 @@ export async function request<T>(path: string, options: Options = {}): Promise<T
   if (token) headers.Authorization = `Bearer ${token}`
   if (options.body !== undefined) headers['Content-Type'] = 'application/json'
 
-  const response = await fetch(`${BASE}/v1${path}`, {
-    method: options.method ?? (options.body || options.form ? 'POST' : 'GET'),
-    headers,
-    body: options.form ?? (options.body !== undefined ? JSON.stringify(options.body) : undefined),
-    signal: options.signal,
-  })
+  let response: Response
+  try {
+    response = await fetch(`${BASE}/v1${path}`, {
+      method: options.method ?? (options.body || options.form ? 'POST' : 'GET'),
+      headers,
+      body: options.form ?? (options.body !== undefined ? JSON.stringify(options.body) : undefined),
+      signal: options.signal,
+    })
+  } catch (caught) {
+    if (isAbort(caught)) throw caught
+    throw unreachable(caught)
+  }
 
   if (response.status === 204) return undefined as T
 
@@ -79,9 +183,14 @@ function safeParse(text: string): unknown {
 }
 
 export async function download(path: string): Promise<{ blob: Blob; filename: string; controlled: boolean }> {
-  const response = await fetch(`${BASE}/v1${path}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  })
+  let response: Response
+  try {
+    response = await fetch(`${BASE}/v1${path}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+  } catch (caught) {
+    throw unreachable(caught)
+  }
   if (!response.ok) throw new ApiError(response.status, 'download_failed', 'Download failed')
   const disposition = response.headers.get('Content-Disposition') ?? ''
   const match = /filename="?([^"]+)"?/.exec(disposition)

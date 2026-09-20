@@ -342,3 +342,12 @@ def test_mfa_enrolment_returns_a_usable_factor(client, tokens):
 
     assert verify_totp(body["secret"], totp_now(body["secret"])) is True
     assert verify_totp(body["secret"], "000000") is False
+
+
+def test_cors_exposes_the_download_headers(client):
+    # A browser on another origin (GitHub Pages, a static site) can only read a
+    # response header the API exposes; without Content-Disposition every
+    # controlled download would save under a generic name.
+    response = client.get("/health", headers={"Origin": "http://localhost:5173"})
+    exposed = {h.strip().lower() for h in response.headers.get("access-control-expose-headers", "").split(",")}
+    assert {"content-disposition", "x-controlled", "x-package-hash", "x-trace-id"} <= exposed

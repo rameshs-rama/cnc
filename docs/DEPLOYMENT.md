@@ -56,11 +56,14 @@ It defines two services:
 Both signing secrets use Render's `generateValue`, so no secret is typed in or
 committed, and the demo tenant is seeded on first boot.
 
-The API is self-contained. The static site needs the API's URL at **build** time,
-because Vite inlines `VITE_API_BASE` into the bundle — so deploy the API first,
-paste its URL into `VITE_API_BASE` on the web service, then set `MIP_CORS_ORIGINS`
-on the API to the web service's URL and redeploy both. Both variables are marked
-`sync: false` for exactly this reason.
+The API is self-contained. The static site is pre-configured for it: the
+blueprint inlines `https://cnc-platform-api.onrender.com` as `VITE_API_BASE` and
+lists both web origins in the API's `MIP_CORS_ORIGINS`, so nothing has to be
+pasted between services. Should Render have to suffix a service name because it
+was taken, the sign-in page shows the endpoint it is using, whether `/health`
+answers from there, and takes a different URL without a rebuild; a link can
+carry one as `?api=https://…`. Add any further origin you serve the web app
+from to `MIP_CORS_ORIGINS`, or the browser will refuse the calls.
 
 **What this profile is not.** Render's free instance type has no persistent disk,
 so SQLite and the object store sit on ephemeral storage and reset on every restart
@@ -71,6 +74,21 @@ both require a paid instance type.
 
 Before a real tenant touches a Render deployment, work through the checklist
 below, starting with `MIP_SEED_DEMO=false`.
+
+## The web application on GitHub Pages
+
+`.github/workflows/pages.yml` publishes the React workspaces to
+`https://rameshs-rama.github.io/cnc/` on every push to `main` that touches
+`frontend/`. The workflow creates the Pages site itself on its first run, builds
+with Vite's base set to the Pages sub-path, and copies `index.html` to `404.html`
+so deep links reach the router.
+
+The bundle's default API is `https://cnc-platform-api.onrender.com`. To bake in a
+different one, set the repository variable `API_BASE` (Settings → Secrets and
+variables → Actions → Variables) and re-run the workflow. To try one without
+rebuilding, use the sign-in page or `?api=`. Whatever API it talks to must list
+`https://rameshs-rama.github.io` in `MIP_CORS_ORIGINS`; the Render blueprint
+already does.
 
 ## Configuration
 

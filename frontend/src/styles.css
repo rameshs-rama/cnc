@@ -301,3 +301,12 @@ tr.selected { background: #1f2937; box-shadow: inset 2px 0 0 var(--accent); }
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
 }
+
+/* Sign-in page: which API this deployment talks to */
+.login-endpoint { margin-top: 0.75rem; font-size: 12px; }
+.login-endpoint summary { cursor: pointer; }
+.login-endpoint code { font-size: 11px; }
+.login-endpoint-form { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem; }
+.login-endpoint-actions { display: flex; gap: 0.5rem; }
+.login-endpoint-actions button { font-size: 12px; padding: 0.25rem 0.6rem; }
+.ok-text { color: var(--accent); }

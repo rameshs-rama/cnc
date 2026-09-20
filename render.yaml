@@ -53,10 +53,10 @@ services:
       - key: MIP_WORKER_THREADS
         value: "1"
 
-      # Only needed if you also deploy the static site below. Paste that site's
-      # URL here once it exists, with no trailing slash, then redeploy the API.
+      # Browsers on these origins may call the API: the GitHub Pages site and
+      # the static site below. Add any other host you serve the web app from.
       - key: MIP_CORS_ORIGINS
-        sync: false
+        value: https://rameshs-rama.github.io,https://cnc-platform-web.onrender.com
 
   # Optional. The API alone is enough to evaluate the platform through /docs;
   # deploy this too if you want the 3D workspaces.
@@ -69,11 +69,11 @@ services:
     staticPublishPath: ./frontend/dist
     autoDeployTrigger: commit
     envVars:
-      # Vite reads this at BUILD time, so it must be set before the build runs.
-      # Deploy the API first, then paste its URL here, for example
-      # https://cnc-platform-api.onrender.com  (no trailing slash).
+      # The API above, at the URL its service name produces. Vite inlines this
+      # at build time as the default; if Render had to suffix the API's name,
+      # the sign-in page can point the site at the real URL without a rebuild.
       - key: VITE_API_BASE
-        sync: false
+        value: https://cnc-platform-api.onrender.com
     routes:
       # Single-page app: unknown paths fall through to the React router.
       - type: rewrite
