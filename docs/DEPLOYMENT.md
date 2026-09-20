@@ -40,6 +40,38 @@ The API keeps one in-process worker so a single-container deployment still
 functions. In the compose profile the dedicated worker service carries the load;
 set `MIP_WORKER_THREADS` to the core count you want to give it.
 
+## Evaluation deployment on Render
+
+`render.yaml` at the repository root is a blueprint for a temporary, shareable
+deployment. Use the Deploy to Render button in the README, or point Render at the
+repository and let it read the blueprint.
+
+It defines two services:
+
+| Service | What it is | Needed? |
+| --- | --- | --- |
+| `cnc-platform-api` | The FastAPI service, with `/docs` and `/health` | Yes — this alone is a working evaluation URL |
+| `cnc-platform-web` | The React workspaces as a static site | Optional |
+
+Both signing secrets use Render's `generateValue`, so no secret is typed in or
+committed, and the demo tenant is seeded on first boot.
+
+The API is self-contained. The static site needs the API's URL at **build** time,
+because Vite inlines `VITE_API_BASE` into the bundle — so deploy the API first,
+paste its URL into `VITE_API_BASE` on the web service, then set `MIP_CORS_ORIGINS`
+on the API to the web service's URL and redeploy both. Both variables are marked
+`sync: false` for exactly this reason.
+
+**What this profile is not.** Render's free instance type has no persistent disk,
+so SQLite and the object store sit on ephemeral storage and reset on every restart
+or wake from idle. A release manifest names hashes whose objects would no longer
+exist. That is fine for evaluating the workflow and wrong for anything else — the
+blueprint carries the managed-Postgres and disk configuration to switch to, and
+both require a paid instance type.
+
+Before a real tenant touches a Render deployment, work through the checklist
+below, starting with `MIP_SEED_DEMO=false`.
+
 ## Configuration
 
 Every setting is environment driven. See `.env.example` for the full list.
