@@ -72,6 +72,49 @@ both require a paid instance type.
 Before a real tenant touches a Render deployment, work through the checklist
 below, starting with `MIP_SEED_DEMO=false`.
 
+### Driving the deployment from an agent
+
+`.mcp.json` at the repository root registers Render's own MCP server, so a
+Claude Code session working in this repository can create the services, watch
+the deploys and read the logs without anyone opening the dashboard. It is a
+convenience, not a requirement — every step below has a dashboard equivalent,
+and the blueprint is the source of truth either way.
+
+It authenticates with a Render API key taken from the environment, so nothing
+secret enters the repository:
+
+```bash
+export RENDER_API_KEY=rnd_...   # Render dashboard → Account Settings → API Keys
+claude                          # the key is read from the environment, not from .env
+```
+
+`.env` is the wrong place for it. Claude Code expands `${RENDER_API_KEY}` from
+its own process environment when it starts the server; the application's `.env`
+is read by pydantic-settings inside the container and never reaches the agent.
+
+The ordering constraint above is what the tools are for — each handoff needs a
+URL that only exists after the previous step finished:
+
+| Step | Tool | Why it is a separate step |
+| --- | --- | --- |
+| Pick the workspace | `list_workspaces`, then pass `workspaceId` on every later call | An account with more than one workspace is otherwise ambiguous |
+| Create the API | `create_web_service` | Or let the blueprint create it; the blueprint keeps the generated secrets |
+| Watch the first deploy | `list_deploys`, `get_deploy` | The image installs numpy and builds a wheel, so the first build is slow |
+| Read the boot log | `list_logs` | Confirms `demo tenant … seeded` and the worker start |
+| Hand the API URL to the site | `update_environment_variables` on `VITE_API_BASE` | Vite inlines it at **build** time, so it must precede the site's build |
+| Hand the site URL back | `update_environment_variables` on `MIP_CORS_ORIGINS` | The browser is blocked until the API names the site as an allowed origin |
+| Apply both | `trigger_deploy` | Environment changes do not rebuild a static site on their own |
+
+Two cautions. The key is workspace-wide: these tools create, modify and delete
+real infrastructure, and `query_render_postgres` reads tenant data, so use a key
+scoped to the workspace you actually want an agent acting in. And the server
+talks to `api.render.com` — a sandbox whose egress policy blocks `render.com`
+cannot use it at all, which is a network failure rather than a credential one.
+
+The hosted endpoint is `https://mcp.render.com/mcp`. If Render moves it, correct
+the `url` in `.mcp.json`; the server can also be run locally over stdio with the
+binary from `render-oss/render-mcp-server`, reading the same `RENDER_API_KEY`.
+
 ## Configuration
 
 Every setting is environment driven. See `.env.example` for the full list.
