@@ -89,7 +89,17 @@ def create_app() -> FastAPI:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
-        expose_headers=["X-Trace-Id", "X-Package-Hash", "X-Program-Hash", "X-Controlled", "X-Content-Hash"],
+        # Content-Disposition carries the filename of every controlled download. A
+        # browser on another origin (GitHub Pages, a static site) can only read it
+        # when it is exposed here; without it every download saves as "download".
+        expose_headers=[
+            "Content-Disposition",
+            "X-Trace-Id",
+            "X-Package-Hash",
+            "X-Program-Hash",
+            "X-Controlled",
+            "X-Content-Hash",
+        ],
     )
 
     @app.middleware("http")

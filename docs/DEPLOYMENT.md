@@ -56,11 +56,14 @@ It defines two services:
 Both signing secrets use Render's `generateValue`, so no secret is typed in or
 committed, and the demo tenant is seeded on first boot.
 
-The API is self-contained. The static site needs the API's URL at **build** time,
-because Vite inlines `VITE_API_BASE` into the bundle — so deploy the API first,
-paste its URL into `VITE_API_BASE` on the web service, then set `MIP_CORS_ORIGINS`
-on the API to the web service's URL and redeploy both. Both variables are marked
-`sync: false` for exactly this reason.
+The API is self-contained. The static site is pre-configured for it: the
+blueprint inlines `https://cnc-platform-api.onrender.com` as `VITE_API_BASE` and
+lists both web origins in the API's `MIP_CORS_ORIGINS`, so nothing has to be
+pasted between services. Should Render have to suffix a service name because it
+was taken, the sign-in page shows the endpoint it is using, whether `/health`
+answers from there, and takes a different URL without a rebuild; a link can
+carry one as `?api=https://…`. Add any further origin you serve the web app
+from to `MIP_CORS_ORIGINS`, or the browser will refuse the calls.
 
 **What this profile is not.** Render's free instance type has no persistent disk,
 so SQLite and the object store sit on ephemeral storage and reset on every restart
@@ -77,8 +80,8 @@ below, starting with `MIP_SEED_DEMO=false`.
 `.mcp.json` at the repository root registers Render's own MCP server, so a
 Claude Code session working in this repository can create the services, watch
 the deploys and read the logs without anyone opening the dashboard. It is a
-convenience, not a requirement — every step below has a dashboard equivalent,
-and the blueprint is the source of truth either way.
+convenience, not a requirement — every step has a dashboard equivalent, and the
+blueprint is the source of truth either way.
 
 It authenticates with a Render API key taken from the environment, so nothing
 secret enters the repository:
@@ -92,18 +95,26 @@ claude                          # the key is read from the environment, not from
 its own process environment when it starts the server; the application's `.env`
 is read by pydantic-settings inside the container and never reaches the agent.
 
-The ordering constraint above is what the tools are for — each handoff needs a
-URL that only exists after the previous step finished:
+Because the blueprint now inlines both URLs, the happy path needs no agent at
+all — it is one blueprint deploy and nothing to paste. What is worth automating
+is the exception the section above describes: the blueprint assumes the API
+lands on `cnc-platform-api.onrender.com`, and if that name was taken, Render
+suffixes it. The inlined `VITE_API_BASE` and the `MIP_CORS_ORIGINS` list then
+both name a host that does not exist, and the failure surfaces in the browser as
+a CORS error rather than as anything the deploy log mentions.
 
-| Step | Tool | Why it is a separate step |
+| Step | Tool | Why |
 | --- | --- | --- |
 | Pick the workspace | `list_workspaces`, then pass `workspaceId` on every later call | An account with more than one workspace is otherwise ambiguous |
-| Create the API | `create_web_service` | Or let the blueprint create it; the blueprint keeps the generated secrets |
 | Watch the first deploy | `list_deploys`, `get_deploy` | The image installs numpy and builds a wheel, so the first build is slow |
 | Read the boot log | `list_logs` | Confirms `demo tenant … seeded` and the worker start |
-| Hand the API URL to the site | `update_environment_variables` on `VITE_API_BASE` | Vite inlines it at **build** time, so it must precede the site's build |
-| Hand the site URL back | `update_environment_variables` on `MIP_CORS_ORIGINS` | The browser is blocked until the API names the site as an allowed origin |
-| Apply both | `trigger_deploy` | Environment changes do not rebuild a static site on their own |
+| Check the name Render actually assigned | `get_service` | This is the whole exception: a suffixed name invalidates both inlined URLs |
+| Repair the origin list | `update_environment_variables` on `MIP_CORS_ORIGINS` | The browser refuses every call until the API names the real web origin |
+| Apply it | `trigger_deploy` | An environment change does not redeploy on its own |
+
+Pointing the web app at a corrected API needs no deploy — the sign-in page and
+`?api=https://…` both do it at runtime — so fixing the API's origin list is
+usually the only side that needs a service change.
 
 Two cautions. The key is workspace-wide: these tools create, modify and delete
 real infrastructure, and `query_render_postgres` reads tenant data, so use a key
@@ -114,6 +125,24 @@ cannot use it at all, which is a network failure rather than a credential one.
 The hosted endpoint is `https://mcp.render.com/mcp`. If Render moves it, correct
 the `url` in `.mcp.json`; the server can also be run locally over stdio with the
 binary from `render-oss/render-mcp-server`, reading the same `RENDER_API_KEY`.
+
+## The web application on GitHub Pages
+
+`.github/workflows/pages.yml` publishes the React workspaces to
+`https://rameshs-rama.github.io/cnc/` on every push to `main` that touches
+`frontend/`. Pages has to be switched on once, in the repository's Settings →
+Pages, with *Build and deployment → Source* set to **GitHub Actions**; the
+workflow's own token cannot create the site, and until then its first step
+fails with "Get Pages site failed". After that the workflow builds with Vite's
+base set to the Pages sub-path and copies `index.html` to `404.html` so deep
+links reach the router.
+
+The bundle's default API is `https://cnc-platform-api.onrender.com`. To bake in a
+different one, set the repository variable `API_BASE` (Settings → Secrets and
+variables → Actions → Variables) and re-run the workflow. To try one without
+rebuilding, use the sign-in page or `?api=`. Whatever API it talks to must list
+`https://rameshs-rama.github.io` in `MIP_CORS_ORIGINS`; the Render blueprint
+already does.
 
 ## Configuration
 

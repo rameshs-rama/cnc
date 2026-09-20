@@ -1,5 +1,6 @@
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from '@/lib/auth'
+import { apiBase } from '@/lib/api'
 import { Login } from '@/pages/Login'
 import { Portfolio } from '@/pages/Portfolio'
 import { ProjectWorkspace } from '@/pages/ProjectWorkspace'
@@ -24,7 +25,7 @@ function Shell() {
           <Link className={location.pathname.startsWith('/factory') ? 'active' : ''} to="/factory">
             Factory twin
           </Link>
-          <a href={`${(import.meta.env.VITE_API_BASE ?? '')}/docs`} target="_blank" rel="noreferrer">
+          <a href={`${apiBase()}/docs`} target="_blank" rel="noreferrer">
             API contract
           </a>
         </nav>
@@ -70,7 +71,9 @@ function Gate() {
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
+      {/* Vite's build base becomes the router base, so the same bundle serves
+          from a domain root or from a sub-path such as GitHub Pages' /cnc/. */}
+      <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '')}>
         <Gate />
       </BrowserRouter>
     </AuthProvider>
