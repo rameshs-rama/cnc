@@ -79,9 +79,12 @@ below, starting with `MIP_SEED_DEMO=false`.
 
 `.github/workflows/pages.yml` publishes the React workspaces to
 `https://rameshs-rama.github.io/cnc/` on every push to `main` that touches
-`frontend/`. The workflow creates the Pages site itself on its first run, builds
-with Vite's base set to the Pages sub-path, and copies `index.html` to `404.html`
-so deep links reach the router.
+`frontend/`. Pages has to be switched on once, in the repository's Settings →
+Pages, with *Build and deployment → Source* set to **GitHub Actions**; the
+workflow's own token cannot create the site, and until then its first step
+fails with "Get Pages site failed". After that the workflow builds with Vite's
+base set to the Pages sub-path and copies `index.html` to `404.html` so deep
+links reach the router.
 
 The bundle's default API is `https://cnc-platform-api.onrender.com`. To bake in a
 different one, set the repository variable `API_BASE` (Settings → Secrets and

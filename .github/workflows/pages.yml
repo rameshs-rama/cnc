@@ -3,6 +3,11 @@ name: Web application to GitHub Pages
 # Publishes the React workspaces as a static site at
 # https://rameshs-rama.github.io/cnc/ on every change to the frontend on main.
 #
+# One-time setup, which the workflow token cannot do itself: in the
+# repository's Settings > Pages, set "Build and deployment > Source" to
+# "GitHub Actions". Until then the first step fails with "Get Pages site
+# failed"; run the workflow again afterwards (Actions > this workflow > Run).
+#
 # The site is only a UI. It talks to whichever API it is pointed at: the build
 # inlines API_BASE (a repository variable, Settings > Secrets and variables >
 # Actions > Variables) and falls back to the URL the Render blueprint produces.
@@ -40,12 +45,10 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      # Creates the Pages site on first run and reports the base path
-      # (/cnc for a project site), which becomes Vite's build base.
+      # Reports the base path (/cnc for a project site), which becomes Vite's
+      # build base.
       - uses: actions/configure-pages@v5
         id: pages
-        with:
-          enablement: true
 
       - name: Install
         working-directory: frontend

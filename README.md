@@ -38,7 +38,9 @@ or wakes from idle — released packages and audit history do not survive that.
 **https://rameshs-rama.github.io/cnc/**
 
 Every change to the web app on `main` is published here by
-[`pages.yml`](.github/workflows/pages.yml). The site is only a UI: it talks to
+[`pages.yml`](.github/workflows/pages.yml), once Pages is switched on for the
+repository (Settings → Pages → Source: **GitHub Actions**; the workflow cannot
+do that itself). The site is only a UI: it talks to
 the API at `https://cnc-platform-api.onrender.com` by default, and the sign-in
 page shows whether that endpoint answers and lets you change it. A link can
 carry the endpoint too — `…/cnc/?api=https://your-api.example` — so the same
